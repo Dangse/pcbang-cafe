@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PC방 고용·절세·채용 통합 솔루션</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 300px;
+        }
+
+        .interactive-card { transition: all 0.3s ease; }
+        .interactive-card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1); }
+
+        .toggle-checkbox:checked { right: 0; border-color: #10B981; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #10B981; }
+
+        .tab-content { display: none; animation: fadeIn 0.4s ease-out; }
+        .tab-content.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .gradient-indigo { background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%); }
+        .gradient-dark { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); }
+    </style>
+    <!-- 
+    Application Structure Plan:
+    1. Navigation: Main Dashboard vs Job Ad Draft Tool.
+    2. Simulation: Reflects 'Employer Burden' vs 'Worker Value' with Subsidy breakdown.
+    3. Subsidy Breakdown (New): Explains HOW 250k, 650k, 150k KRW values were calculated.
+    4. Subsidies 2025: Comprehensive list of 6 grants.
+    5. Worker SME Tax: Focus on 90% reduction.
+    6. 5-Person Workplace: Detailed legal list.
+    7. Job Ad Draft Tool: LocalStorage persistence with editable business info.
+    8. Tax Consulting: Daehan Tax Corp strategic partnership.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="antialiased">
+
+    <!-- Navigation Bar -->
+    <nav class="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2 cursor-pointer" onclick="switchPage('main')">
+                <span class="text-2xl">🖥️</span>
+                <span class="text-xl font-black text-indigo-600 tracking-tighter uppercase">PC방은 대한세무법인</span>
+            </div>
+            <div class="flex gap-2 sm:gap-4">
+                <button onclick="switchPage('main')" id="nav-main" class="px-3 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-indigo-50 text-indigo-600 transition-colors">피시방절세 & 3.3% 처리</button>
+                <button onclick="switchPage('jobAd')" id="nav-jobAd" class="px-3 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-500 hover:bg-slate-100 transition-colors">직원공고작성 샘플</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- PAGE 1: ANALYSIS DASHBOARD -->
+    <main id="page-main" class="tab-content active max-w-6xl mx-auto px-4 py-10 space-y-24">
+        
+        <!-- Section: Simulator -->
+        <section id="simulator">
+            <div class="text-center mb-12">
+                <h2 class="text-4xl font-black text-slate-900 tracking-tight leading-tight italic">비용 및 혜택 시뮬레이션</h2>
+                <p class="text-slate-500 mt-2 text-lg">핵심 결론: 최소 두리누리와 고용장려금 받아야 유리 </p>
+            </div>
+
+            <div class="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 p-8 mb-12">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+                    <div class="space-y-6">
+                        <label class="block text-sm font-black text-slate-400 uppercase tracking-widest">월 급여 설정 (세전)</label>
+                        <div class="flex gap-4">
+                            <button onclick="updateSim(100)" class="sim-btn flex-1 py-5 rounded-2xl border-2 border-slate-100 font-black transition-all hover:bg-slate-50" data-val="100">100만원</button>
+                            <button onclick="updateSim(200)" class="sim-btn flex-1 py-5 rounded-2xl border-2 border-slate-100 font-black transition-all hover:bg-slate-50" data-val="200">200만원</button>
+                            <button onclick="updateSim(300)" class="sim-btn flex-1 py-5 rounded-2xl border-2 border-slate-100 font-black transition-all hover:bg-slate-50" data-val="300">300만원</button>
+                        </div>
+                    </div>
+                    <div class="gradient-indigo p-8 rounded-[2rem] flex items-center justify-between text-white shadow-xl">
+                        <div>
+                            <p class="font-bold text-xl">정부 지원금 반영 할때</p>
+                            <p class="text-xs text-indigo-100 mt-1">두루누리/청년도약장려금 등 포함</p>
+                        </div>
+                        <div class="relative inline-block w-14 h-7 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" id="subsidyToggle" class="toggle-checkbox absolute block w-7 h-7 rounded-full bg-white border-4 appearance-none cursor-pointer border-indigo-400 transition-all duration-300"/>
+                            <label for="subsidyToggle" class="toggle-label block overflow-hidden h-7 rounded-full bg-indigo-400 cursor-pointer"></label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200 interactive-card">
+                    <h3 class="font-bold text-slate-800 mb-8 flex items-center gap-3">🏢 사업주 실질 지출</h3>
+                    <div class="chart-container">
+                        <canvas id="empChart"></canvas>
+                    </div>
+                    <div id="empSummary" class="mt-8 p-6 bg-slate-50 rounded-2xl text-sm leading-relaxed text-slate-600 border border-slate-100"></div>
+                </div>
+                <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200 interactive-card">
+                    <h3 class="font-bold text-slate-800 mb-8 flex items-center gap-3">🎁 피시방근로자누적 혜택</h3>
+                    <div class="chart-container">
+                        <canvas id="workChart"></canvas>
+                    </div>
+                    <div id="workSummary" class="mt-8 p-6 bg-slate-50 rounded-2xl text-sm leading-relaxed text-slate-600 border border-slate-100"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Detailed Calculation Basis (Updated with Subsidy Details) -->
+        <section id="calc-basis" class="bg-slate-50 p-10 rounded-[3.5rem] border border-slate-200">
+            <div class="max-w-5xl mx-auto space-y-12">
+                <div class="text-center">
+                    <h2 class="text-3xl font-black text-slate-900 tracking-tight">시뮬레이션 계산 근거 상세</h2>
+                    <p class="text-slate-400 mt-2 text-sm">※ 2026년 최신 법령 및 고시 지침 기준</p>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- 1. Owners -->
+                    <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 space-y-4">
+                        <h4 class="font-black text-indigo-600 border-b pb-2">🏢 사업주 지출 구성</h4>
+                        <ul class="text-[13px] space-y-4">
+                            <li class="p-3 bg-slate-50 rounded-xl">
+                                <span class="font-bold block text-slate-800 mb-1">4대보험 사업주 부담 (~10.5%)</span>
+                                국민연금(4.5%), 건강보험(3.545%), 고용보험(1.15%), 산재보험(PC방 평균 0.8% 적용)
+                            </li>
+                            <li class="p-3 bg-slate-50 rounded-xl">
+                                <span class="font-bold block text-slate-800 mb-1">퇴직급여 (~8.33%)</span>
+                                1년 이상 근무 시 지급 의무 자금의 월별 안분액 (월급/12)
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- 2. Subsidies (THE ANSWER TO USER QUERY) -->
+                    <div class="bg-white p-8 rounded-3xl shadow-sm border border-indigo-200 ring-2 ring-indigo-50 space-y-4">
+                        <h4 class="font-black text-rose-600 border-b pb-2">💰 고용장려금 반영 내역</h4>
+                        <p class="text-[11px] text-slate-400 mb-2 leading-relaxed italic">* 토글 활성화 시 아래 금액이 차감됩니다.</p>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center p-3 bg-rose-50 rounded-xl">
+                                <span class="text-xs font-bold">월 100만원 구간</span>
+                                <span class="text-sm font-black text-rose-600">- 25만원</span>
+                            </div>
+                            <p class="text-[11px] text-slate-500 ml-2">• 두루누리 보험료 80% 지원 위주 반영</p>
+                            
+                            <div class="flex justify-between items-center p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+                                <span class="text-xs font-bold">월 200만원 구간</span>
+                                <span class="text-sm font-black text-indigo-600">- 65만원</span>
+                            </div>
+                            <p class="text-[11px] text-slate-500 ml-2">• <strong>도약장려금(월 60만)</strong> + 두루누리 합산</p>
+                            
+                            <div class="flex justify-between items-center p-3 bg-rose-50 rounded-xl">
+                                <span class="text-xs font-bold">월 300만원 구간</span>
+                                <span class="text-sm font-black text-rose-600">- 15만원</span>
+                            </div>
+                            <p class="text-[11px] text-slate-500 ml-2">• 고용증대 세액공제 및 일부 정책 안분 반영</p>
+                        </div>
+                    </div>
+
+                    <!-- 3. Workers -->
+                    <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 space-y-4">
+                        <h4 class="font-black text-emerald-600 border-b pb-2">🎁 피시방근로자실질 혜택</h4>
+                        <ul class="text-[13px] space-y-4">
+                            <li class="p-3 bg-slate-50 rounded-xl">
+                                <span class="font-bold block text-slate-800 mb-1">pc방 소득세 감면 (핵심)</span>
+                                90% 감면 적용 시, 소득세가 거의 발생하지 않아 실수령액이 프리랜서와 대등해짐
+                            </li>
+                            <li class="p-3 bg-slate-50 rounded-xl">
+                                <span class="font-bold block text-slate-800 mb-1">pc방 직원채용 용이</span>
+                                실업급여 수급권, 산재 보장, 퇴직금 목돈 마련 등 월 약 40~50만원의 추가 가치
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: 2025 Employer Subsidies (FULL) -->
+        <section id="subsidies" class="space-y-12">
+            <div class="text-center">
+                <h2 class="text-3xl font-black text-slate-900 tracking-tight underline decoration-indigo-200 decoration-8 underline-offset-4">2025 사업주 정부지원금 6종 총정리</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="p-8 bg-white rounded-[2rem] border border-slate-200 interactive-card space-y-4">
+                    <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl font-black text-blue-600 italic">01</div>
+                    <h4 class="font-bold text-slate-800 text-lg">두루누리 사회보험 지원</h4>
+                    <p class="text-[12px] text-slate-500 leading-relaxed">
+                        • <strong>내용:</strong> 국민연금·고용보험료 <strong>80% 지원</strong><br>
+                        • <strong>대상:</strong> 10인 미만 사업장 / 보수 270만 미만
+                    </p>
+                </div>
+                <div class="p-8 bg-white rounded-[2rem] border border-slate-200 interactive-card space-y-4">
+                    <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center text-2xl font-black text-emerald-600 italic">02</div>
+                    <h4 class="font-bold text-slate-800 text-lg">청년일자리도약장려금</h4>
+                    <p class="text-[12px] text-slate-500 leading-relaxed">
+                        • <strong>내용:</strong> 2년간 최대 <strong>1,200만원</strong> 현금 지원<br>
+                        • <strong>대상:</strong> 취업애로청년 정규직 채용 시 (PC방 포함)
+                    </p>
+                </div>
+                <div class="p-8 bg-white rounded-[2rem] border border-slate-200 interactive-card space-y-4">
+                    <div class="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center text-2xl font-black text-amber-600 italic">03</div>
+                    <h4 class="font-bold text-slate-800 text-lg">청년 일경험 지원사업</h4>
+                    <p class="text-[12px] text-slate-500 leading-relaxed">
+                        • <strong>내용:</strong> 인턴 기간 인건비 <strong>전액 국고 지원</strong><br>
+                        • <strong>금액:</strong> 인당 월 약 200만원 수준 지원
+                    </p>
+                </div>
+                <div class="p-8 bg-white rounded-[2rem] border border-slate-200 interactive-card space-y-4">
+                    <div class="w-12 h-12 bg-rose-100 rounded-xl flex items-center justify-center text-2xl font-black text-rose-600 italic">04</div>
+                    <h4 class="font-bold text-slate-800 text-lg">고용증대 세액공제</h4>
+                    <p class="text-[12px] text-slate-500 leading-relaxed">
+                        • <strong>내용:</strong> 인원 증가 시 소득세/법인세 직접 감면<br>
+                        • <strong>혜택:</strong> 청년 1인 증가 시 연 <strong>최대 1,200만원</strong>
+                    </p>
+                </div>
+                <div class="p-8 bg-white rounded-[2rem] border border-slate-200 interactive-card space-y-4">
+                    <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center text-2xl font-black text-indigo-600 italic">05</div>
+                    <h4 class="font-bold text-slate-800 text-lg">워라밸 행복 지원금</h4>
+                    <p class="text-[12px] text-slate-500 leading-relaxed">
+                        • <strong>내용:</strong> 유연근무 도입 시 <strong>월 30~50만원</strong> 보전<br>
+                        • <strong>효과:</strong> PC방 교대근무 효율화 및 관리비 절감
+                    </p>
+                </div>
+                <div class="p-8 bg-white rounded-[2rem] border border-slate-200 interactive-card space-y-4">
+                    <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center text-2xl font-black text-purple-600 italic">06</div>
+                    <h4 class="font-bold text-slate-800 text-lg">출산/육아 대체인력 지원</h4>
+                    <p class="text-[12px] text-slate-500 leading-relaxed">
+                        • <strong>내용:</strong> 대체 인력 채용 시 인건비 <strong>월 80만원</strong> 지급<br>
+                        • <strong>특징:</strong> 숙련 근로자의 경력 유지 및 고용 연속성 확보
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Worker Benefits -->
+        <section id="worker-benefits" class="space-y-12">
+            <div class="bg-indigo-900 rounded-[3rem] p-12 text-white flex flex-col md:flex-row items-center gap-12 shadow-2xl">
+                <div class="md:w-1/2 space-y-6">
+                    <h2 class="text-3xl font-black">피시방근로자소득세 90% 감면</h2>
+                    <p class="text-indigo-200 leading-relaxed text-lg italic">정규직이 3.3% 프리랜서보다 실수령액이 더 높은 마법 같은 이유!</p>
+                    <div class="flex gap-4">
+                        <div class="bg-white/10 p-5 rounded-2xl border border-white/20 flex-1 text-center">
+                            <span class="block text-xs text-indigo-300 font-black mb-1 uppercase tracking-tighter">청년</span>
+                            <span class="text-4xl font-black tracking-tighter">90% <span class="text-sm font-normal">감면</span></span>
+                        </div>
+                        <div class="bg-white/10 p-5 rounded-2xl border border-white/20 flex-1 text-center">
+                            <span class="block text-xs text-indigo-300 font-black mb-1 uppercase tracking-tighter">노인/장애인</span>
+                            <span class="text-4xl font-black tracking-tighter">70% <span class="text-sm font-normal">감면</span></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="md:w-1/2 grid grid-cols-2 gap-6">
+                    <div class="bg-white/5 p-6 rounded-2xl border border-white/10 flex flex-col items-center hover:bg-white/10 transition cursor-default">
+                        <span class="text-4xl mb-2">💰</span>
+                        <span class="text-sm font-bold">퇴직금 보장</span>
+                    </div>
+                    <div class="bg-white/5 p-6 rounded-2xl border border-white/10 flex flex-col items-center hover:bg-white/10 transition cursor-default">
+                        <span class="text-4xl mb-2">🏥</span>
+                        <span class="text-sm font-bold">4대보험 안전망</span>
+                    </div>
+                    <div class="bg-white/5 p-6 rounded-2xl border border-white/10 flex flex-col items-center hover:bg-white/10 transition cursor-default">
+                        <span class="text-4xl mb-2">💳</span>
+                        <span class="text-sm font-bold">신용도 상승</span>
+                    </div>
+                    <div class="bg-white/5 p-6 rounded-2xl border border-white/10 flex flex-col items-center hover:bg-white/10 transition cursor-default">
+                        <span class="text-4xl mb-2">📜</span>
+                        <span class="text-sm font-bold">소득금액확인서/ 원천징수확인서</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: 5-Person Workplace Calculator -->
+        <section id="calculator" class="bg-white rounded-[3rem] shadow-sm border border-slate-200 p-10 scroll-mt-24">
+            <div class="flex flex-col lg:flex-row gap-16">
+                <div class="lg:w-1/3 space-y-6">
+                    <h2 class="text-3xl font-black text-slate-900 tracking-tight">⚖️ 상시 피시방근로자5인 계산</h2>
+                    <p class="text-sm text-slate-500 leading-relaxed italic">피시방은 5인 이상 여부에 따라 사장님의 법적 리스크 규모가 완전히 달라집니다. 단, 5인이상인 경우여야  "청년고용장려금 받을수  있음. </p>
+                    <div class="p-8 bg-slate-900 rounded-[2rem] text-white shadow-xl shadow-slate-200">
+                        <h4 class="text-sm font-bold text-rose-400 border-b border-white/20 pb-3 mb-5 flex items-center gap-2 uppercase tracking-widest">Legal Obligations</h4>
+                        <ul class="text-[12px] space-y-4 text-slate-300 leading-loose">
+                            <li class="flex items-start gap-2"><span class="text-rose-500">●</span> <strong>가산수당:</strong> 연장/야간/휴일 1.5배</li>
+                            <li class="flex items-start gap-2"><span class="text-rose-500">●</span> <strong>연차휴가:</strong> 유급 휴가 부여 의무</li>
+                            <li class="flex items-start gap-2"><span class="text-rose-500">●</span> <strong>부당해고:</strong> 노동위 구제신청 대상</li>
+                            <li class="flex items-start gap-2"><span class="text-rose-500">●</span> <strong>휴업수당:</strong> 평균임금 70% 지급</li>
+                            <li class="flex items-start gap-2"><span class="text-rose-500">●</span> <strong>근로시간:</strong> 주 52시간제 준수</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="lg:w-2/3 space-y-10">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                        <div class="p-8 bg-slate-50 rounded-3xl text-center border border-slate-100 shadow-inner">
+                            <span class="block text-xs font-bold text-slate-400 mb-4 uppercase tracking-widest">Morning 조</span>
+                            <input type="number" id="mStaff" value="1" min="0" class="w-full text-center bg-transparent text-5xl font-black text-indigo-600 focus:outline-none">
+                        </div>
+                        <div class="p-8 bg-slate-50 rounded-3xl text-center border border-slate-100 shadow-inner">
+                            <span class="block text-xs font-bold text-slate-400 mb-4 uppercase tracking-widest">Afternoon 조</span>
+                            <input type="number" id="aStaff" value="2" min="0" class="w-full text-center bg-transparent text-4xl font-black text-indigo-600 focus:outline-none">
+                        </div>
+                        <div class="p-8 bg-slate-50 rounded-3xl text-center border border-slate-100 shadow-inner">
+                            <span class="block text-xs font-bold text-slate-400 mb-4 uppercase tracking-widest">Night 조</span>
+                            <input type="number" id="nStaff" value="1" min="0" class="w-full text-center bg-transparent text-4xl font-black text-indigo-600 focus:outline-none">
+                        </div>
+                    </div>
+                    <div id="calcBox" class="p-10 rounded-[2.5rem] border-4 flex flex-col sm:flex-row items-center justify-between gap-6 transition-all duration-500">
+                        <div>
+                            <p class="text-sm font-bold text-slate-400">일일 평균 투입 피시방근로자수</p>
+                            <h4 id="avgText" class="text-7xl font-black mt-2 tracking-tighter">4.0명</h4>
+                        </div>
+                        <div id="badge" class="px-10 py-4 rounded-full font-black text-xl shadow-lg"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Tax Consulting -->
+        <section id="tax-consulting">
+            <div class="gradient-dark rounded-[3.5rem] p-12 text-white shadow-2xl relative overflow-hidden">
+                <div class="absolute -bottom-20 -right-20 opacity-5 pointer-events-none text-white">
+                    <span class="text-[25rem] font-black tracking-tighter">TAX</span>
+                </div>
+                <div class="relative z-10 max-w-4xl mx-auto space-y-16">
+                    <div class="text-center space-y-4">
+                        <span class="px-6 py-2 bg-indigo-600 rounded-full text-xs font-black tracking-widest uppercase mb-4 inline-block shadow-lg">대한세무법인 협력 솔루션</span>
+                        <h2 class="text-4xl font-black tracking-tight leading-tight">피시방을 위한 특별한 합법 절세컨설팅</h2>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 font-sans">
+                        <div class="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 hover:bg-white/10 transition group">
+                            <h4 class="text-xl font-black mb-4 group-hover:text-indigo-400 flex items-center gap-2">📍 공동사업으로 줄이기</h4>
+                            <p class="text-sm text-slate-400 font-medium leading-relaxed">상상할수 없는 다양한 공동사업 구성으로 합법적 절세가능합니다. 을 통해 누진세율 구간을 낮추고 실질 세부담을 파격적으로 절감합니다.</p>
+                        </div>
+                        <div class="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 hover:bg-white/10 transition group">
+                            <h4 class="text-xl font-black mb-4 group-hover:text-indigo-400 flex items-center gap-2">📍 조특법으로 세금줄이기</h4>
+                            <p class="text-sm text-slate-400 font-medium leading-relaxed">2026년 조특법 혜택을 100% 활용합니다.</p>
+                        </div>
+                        <div class="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 hover:bg-white/10 transition group">
+                            <h4 class="text-xl font-black mb-4 group-hover:text-indigo-400 flex items-center gap-2">📍 인건비로 세금줄이기</h4>
+                            <p class="text-sm text-slate-400 font-medium leading-relaxed">합법적 인건비 처리를 통해 과표를 관리하고 보험료 부담을 최적화합니다.</p>
+                        </div>
+                        <div class="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 hover:bg-white/10 transition group">
+                            <h4 class="text-xl font-black mb-4 group-hover:text-indigo-400 flex items-center gap-2">📍 1사람이 pc 방 여러개 할수 있게 </h4>
+                            <p class="text-sm text-slate-400 font-medium leading-relaxed">복수 사업장 운영 시 발생하는 합산 과세 문제를 구조적으로 해결해드립니다.</p>
+                        </div>
+                        <div class="p-8 bg-white/5 rounded-[2.5rem] border border-white/10 hover:bg-white/10 transition group md:col-span-2">
+                            <h4 class="text-xl font-black mb-4 group-hover:text-indigo-400 flex items-center gap-2">📍 정부지원금받기</h4>
+                            <p class="text-sm text-slate-400 font-medium leading-relaxed">사장님 상황에 맞는 정책 보조금을 선제적으로 매칭하여 현금 흐름을 개선합니다.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- PAGE 2: JOB AD DRAFT TOOL -->
+    <main id="page-jobAd" class="tab-content max-w-5xl mx-auto px-4 py-12 pb-32">
+        <div class="mb-10 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <button onclick="switchPage('main')" class="w-12 h-12 flex items-center justify-center bg-white rounded-2xl shadow-sm hover:bg-slate-50 transition border border-slate-200">←</button>
+                <h2 class="text-3xl font-black text-slate-900 tracking-tight leading-none tracking-tighter">채용 공고문 초안 작성기</h2>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="saveJobAdInfo()" class="px-6 py-3 bg-indigo-600 text-white font-black rounded-2xl text-sm shadow-xl hover:bg-indigo-700 transition">💾 정보 저장</button>
+                <button onclick="loadJobAdInfo()" class="px-6 py-3 bg-slate-700 text-white font-black rounded-2xl text-sm shadow-xl hover:bg-slate-600 transition">📂 불러오기</button>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-[3rem] shadow-2xl border border-slate-200 overflow-hidden">
+            <!-- Header of Ad Draft -->
+            <div class="p-12 gradient-indigo text-white">
+                <h1 class="text-3xl font-black leading-tight tracking-tighter">🏆 [파격 채용] 세금 90% 감면 받고 시작하는<br>PC방 정규직/파트타이머 모집! 🔥</h1>
+                <div class="mt-8 p-6 bg-white/10 rounded-3xl border border-white/20 shadow-inner">
+                    <p class="text-indigo-100 font-bold italic leading-relaxed">"🚨 잠깐! 그냥 PC방 알바가 아닙니다! 미래를 준비하는 당신을 위한 가장 현명한 선택! 압도적인 복지 혜택과 안정적인 근무 환경을 갖춘 프리미엄 PC방에서 함께할 팀원을 찾습니다."</p>
+                </div>
+            </div>
+
+            <div class="p-12 space-y-16">
+                <!-- User Fields -->
+                <div class="p-10 gradient-dark rounded-[3rem] text-white space-y-8 shadow-2xl">
+                    <h3 class="text-2xl font-black flex items-center gap-3"><span>✏️</span> 공고 완성을 위한 매장 정보 입력</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="space-y-3">
+                            <label class="text-xs font-black text-indigo-400 uppercase tracking-widest">회사 (PC방 이름)</label>
+                            <input type="text" id="input-company" placeholder="예: 최고사양 갤럭시 PC방 강남점" class="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white focus:bg-white/10 outline-none transition ring-indigo-500/20 focus:ring-4">
+                        </div>
+                        <div class="space-y-3">
+                            <label class="text-xs font-black text-indigo-400 uppercase tracking-widest">매장 위치</label>
+                            <input type="text" id="input-location" placeholder="예: 서울 강남구 역삼로 123 2층" class="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white focus:bg-white/10 outline-none transition ring-indigo-500/20 focus:ring-4">
+                        </div>
+                        <div class="space-y-3 md:col-span-2">
+                            <label class="text-xs font-black text-indigo-400 uppercase tracking-widest">지원 방법 및 연락처</label>
+                            <input type="text" id="input-contact" placeholder="예: 010-1234-5678 (성함/나이/경력 문자 지원 부탁드립니다)" class="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white focus:bg-white/10 outline-none transition ring-indigo-500/20 focus:ring-4">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Static Ad Body -->
+                <div class="space-y-12 text-slate-700">
+                    <div class="space-y-6">
+                        <h3 class="text-2xl font-black text-indigo-600 border-b-4 border-indigo-100 pb-2 inline-block">📌 특별 혜택 A to Z</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div class="p-8 bg-slate-50 rounded-[2rem] border border-slate-100 shadow-sm">
+                                <h4 class="font-bold text-lg text-slate-900 mb-4">💰 [핵심 혜택 1] 월급 그대로 받기!</h4>
+                                <p class="text-sm leading-relaxed font-medium">
+                                    • <strong>pc방 취업자 소득세 90% 감면!</strong><br>
+                                    • 월급 세금이 거의 없는 수준!<br>
+                                    • 똑같이 일해도 다른 곳보다 실수령액이 훨씬 높습니다. 💸
+                                </p>
+                            </div>
+                            <div class="p-8 bg-slate-50 rounded-[2rem] border border-slate-100 shadow-sm">
+                                <h4 class="font-bold text-lg text-slate-900 mb-4">🛡️ [핵심 혜택 2] 완벽한 안정성!</h4>
+                                <p class="text-sm leading-relaxed font-medium">
+                                    • <strong>4대 보험 확실하게 지원!</strong> (건강/고용/산재/국민연금)<br>
+                                    • <strong>법정 퇴직금:</strong> 1년 이상 근무 시 목돈 보장 🤝<br>
+                                    • 정규직 전환 기회 및 커리어 성장 가능!
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-8 bg-indigo-50/50 rounded-[2.5rem] border border-indigo-100">
+                         <h4 class="font-black text-indigo-800 text-xl mb-4">🎮 당신을 위한 특별한 업무 환경</h4>
+                         <ul class="text-sm space-y-4 font-medium leading-relaxed italic">
+                            <li class="flex items-start gap-2"><span>✨</span> <strong>최신 사양 PC 무제한 이용:</strong> 휴게시간 등 고성능 장비 자유 사용</li>
+                            <li class="flex items-start gap-2"><span>✨</span> <strong>활기차고 힙한 분위기:</strong> 젊은 팀원들과 함께 즐겁게 일하는 공간</li>
+                            <li class="flex items-start gap-2"><span>✨</span> <strong>체계적 교육 시스템:</strong> 초보자도 1:1 OJT를 통해 완벽 적응 지원</li>
+                        </ul>
+                    </div>
+
+                    <div class="space-y-6">
+                        <h3 class="text-2xl font-black text-slate-800 border-b-4 border-slate-100 pb-2 inline-block">📋 채용 상세 요약</h3>
+                        <div class="rounded-[2rem] border border-slate-200 overflow-hidden shadow-xl">
+                            <table class="w-full text-sm border-collapse">
+                                <thead class="bg-slate-50">
+                                    <tr>
+                                        <th class="p-5 text-left border-b border-slate-200 font-black">모집 부문</th>
+                                        <th class="p-5 text-left border-b border-slate-200 font-black">고용 형태</th>
+                                        <th class="p-5 text-left border-b border-slate-200 font-black">급여 (세전)</th>
+                                        <th class="p-5 text-left border-b border-slate-200 font-black">비고</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="hover:bg-slate-50 transition">
+                                        <td class="p-5 border-b border-slate-200 font-bold">정규직 매니저/파트타임</td>
+                                        <td class="p-5 border-b border-slate-200">가능하면 정규직</td>
+                                        <td class="p-5 border-b border-slate-200 text-rose-600 font-black">월 200만원 이상</td>
+                                        <td class="p-5 border-b border-slate-200 text-xs text-slate-400 font-medium">수습 후 정규 전환</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FINAL COPY BUTTON -->
+                <div class="pt-8">
+                    <button onclick="copyFullAd()" class="w-full py-10 gradient-indigo text-white font-black text-2xl rounded-[3rem] hover:shadow-2xl hover:scale-[1.01] transition-all flex items-center justify-center gap-4">
+                        <span>🏆 이 공고문 전체 복사해서 올리기</span>
+                        <span class="bg-white/20 px-4 py-1 rounded-full text-sm uppercase tracking-widest font-black">Copy Now</span>
+                    </button>
+                    <p class="text-center text-slate-400 text-xs mt-8 font-medium italic">버튼을 누르면 위 초안 문구와 입력한 정보가 즉시 하나로 합쳐져 클립보드에 복제됩니다.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-white border-t border-slate-200 py-20 mt-20">
+        <div class="max-w-7xl mx-auto px-4 text-center space-y-6 opacity-80">
+            <p class="text-slate-400 text-[10px] leading-relaxed max-w-2xl mx-auto tracking-tighter">본 데이터는 2025년 정부 고시 정책을 기준으로 산정되었습니다. 실제 장려금 수령액과 소득세 감면율은 사업장별 조건(채용 청년 연령, 이전년도 고용 인원 등)에 따라 다를 수 있으므로 대한세무법인의 개별 진단을 받으시길 권장합니다.</p>
+            <p class="text-slate-600 font-black tracking-tighter text-xs uppercase opacity-70">© 2025 PC CAFE TOTAL MANAGEMENT SERVICE & TAX MASTER</p>
+        </div>
+    </footer>
+
+    <!-- LOGIC SCRIPT -->
+    <script>
+        // --- App State ---
+        const state = { 
+            currentPage: 'main',
+            salary: 200, 
+            subsidy: false 
+        };
+
+        // Detailed simulation data based on the logic explained to user
+        const simulationData = {
+            100: { free: { cost: 100, net: 96.7 }, emp: { base: 100, inc: 10.5, sev: 8.3, workInc: 9.4, sub: 25 } },
+            200: { free: { cost: 200, net: 193.4 }, emp: { base: 200, inc: 21, sev: 16.6, workInc: 18.8, sub: 65 } },
+            300: { free: { cost: 300, net: 290.1 }, emp: { base: 300, inc: 31.5, sev: 25, workInc: 28.2, sub: 15 } }
+        };
+
+        let empChart, wChart;
+
+        // --- Navigation Logic ---
+        function switchPage(page) {
+            state.currentPage = page;
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(`page-${page}`).classList.add('active');
+
+            const navMain = document.getElementById('nav-main');
+            const navJob = document.getElementById('nav-jobAd');
+            if (page === 'main') {
+                navMain.classList.add('bg-indigo-50', 'text-indigo-600');
+                navJob.classList.remove('bg-indigo-50', 'text-indigo-600');
+                navJob.classList.add('text-slate-500');
+            } else {
+                navJob.classList.add('bg-indigo-50', 'text-indigo-600');
+                navMain.classList.remove('bg-indigo-50', 'text-indigo-600');
+                navMain.classList.add('text-slate-500');
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // --- Dashboard Simulation Logic ---
+        function updateSim(val) {
+            state.salary = parseInt(val);
+            document.querySelectorAll('.sim-btn').forEach(b => {
+                if (parseInt(b.dataset.val) === state.salary) {
+                    b.classList.add('border-indigo-600', 'bg-indigo-50', 'text-indigo-600');
+                    b.classList.remove('border-slate-100');
+                } else {
+                    b.classList.remove('border-indigo-600', 'bg-indigo-50', 'text-indigo-600');
+                    b.classList.add('border-slate-100');
+                }
+            });
+            drawCharts();
+        }
+
+        function drawCharts() {
+            const d = simulationData[state.salary];
+            let employerTotal = d.emp.base + d.emp.inc + d.emp.sev;
+            if (state.subsidy) employerTotal -= d.emp.sub;
+
+            // Update Employer Chart
+            if (empChart) {
+                empChart.data.datasets[0].data = [d.free.cost, employerTotal];
+                empChart.data.datasets[0].backgroundColor = ['#cbd5e1', state.subsidy ? '#10b981' : '#f43f5e'];
+                empChart.update();
+            }
+
+            document.getElementById('empSummary').innerHTML = `급여 ${state.salary}만원 정규직 전환 시 월 약 <strong>${Math.abs(employerTotal - d.free.cost).toFixed(1)}만원</strong> ${employerTotal > d.free.cost ? '추가 지출' : '오히려 절감'} 발생 💡 (정부지원금 ${state.subsidy ? d.emp.sub : 0}만원 반영)`;
+
+            // Update Worker Chart
+            if (wChart) {
+                wChart.data.datasets[0].data = [d.free.net, d.emp.base - d.emp.workInc];
+                wChart.data.datasets[1].data = [0, d.emp.sev + 40]; // 40 is estimated monthly social safety value
+                wChart.update();
+            }
+
+            document.getElementById('workSummary').innerHTML = `실수령액 변동 폭은 줄어드는 반면, 퇴직금 및 실업보장권 등 <strong>월 평균 ${(d.emp.sev + 40).toFixed(1)}만원</strong>의 자산 가치가 추가로 적립됩니다.`;
+        }
+
+        function calculateWorkers() {
+            const m = parseFloat(document.getElementById('mStaff').value) || 0;
+            const a = parseFloat(document.getElementById('aStaff').value) || 0;
+            const n = parseFloat(document.getElementById('nStaff').value) || 0;
+            const avg = m + a + n;
+            document.getElementById('avgText').innerText = avg.toFixed(1) + '명';
+            const badge = document.getElementById('badge');
+            const box = document.getElementById('calcBox');
+
+            if (avg < 5) {
+                badge.innerText = "5인 미만 사업장 ✅";
+                badge.className = "px-10 py-4 rounded-full font-black text-xl bg-emerald-100 text-emerald-700 shadow-emerald-50 shadow-xl transition-all";
+                box.className = "p-10 rounded-[2.5rem] border-4 border-emerald-100 bg-emerald-50/30 flex flex-col sm:flex-row items-center justify-between gap-6 transition-all duration-500";
+            } else {
+                badge.innerText = "5인 이상 사업장 🚨";
+                badge.className = "px-10 py-4 rounded-full font-black text-xl bg-rose-100 text-rose-700 shadow-rose-50 shadow-xl transition-all";
+                box.className = "p-10 rounded-[2.5rem] border-4 border-rose-100 bg-rose-50/30 flex flex-col sm:flex-row items-center justify-between gap-6 transition-all duration-500";
+            }
+        }
+
+        // --- Storage Logic ---
+        function saveJobAdInfo() {
+            const data = {
+                company: document.getElementById('input-company').value,
+                location: document.getElementById('input-location').value,
+                contact: document.getElementById('input-contact').value
+            };
+            localStorage.setItem('pc_cafe_job_ad_final_v3', JSON.stringify(data));
+            alert('매장 정보가 안전하게 저장되었습니다.');
+        }
+
+        function loadJobAdInfo() {
+            const stored = localStorage.getItem('pc_cafe_job_ad_final_v3');
+            if(!stored) { alert('저장된 정보가 없습니다.'); return; }
+            const data = JSON.parse(stored);
+            document.getElementById('input-company').value = data.company || '';
+            document.getElementById('input-location').value = data.location || '';
+            document.getElementById('input-contact').value = data.contact || '';
+            alert('저장된 정보를 성공적으로 불러왔습니다.');
+        }
+
+        function copyFullAd() {
+            const company = document.getElementById('input-company').value || "[매장명 미입력]";
+            const location = document.getElementById('input-location').value || "[위치 미입력]";
+            const contact = document.getElementById('input-contact').value || "[연락처 미입력]";
+
+            const adText = `
+🏆 [파격 채용] 세금 90% 감면 받고 시작하는 PC방 정규직/파트타이머 모집! 🔥
+
+🚨 잠깐! 그냥 PC방 알바가 아닙니다! 🚨
+미래를 준비하는 당신을 위한 가장 현명한 선택! 압도적인 복지 혜택과 안정적인 근무 환경을 갖춘 프리미엄 PC방에서 함께할 팀원을 찾습니다.
+
+---
+
+📌 특별 혜택 A to Z: 이래서 지원해야 합니다!
+
+저희는 단순 시급이 아닌, 실수령액을 극대화할 수 있는 최고의 조건을 약속드립니다.
+
+💰 [핵심 혜택 1] 월급을 그대로 받으세요! (정규직 해당)
+✅ pc방 취업자 소득세 90% 감면 혜택!
+* 월급에서 빠져나가던 소득세를 획기적으로 줄여드립니다. 📉
+* 월 200만원을 받아도 세금이 거의 없는 수준! (정부 조건 충족 시, 실수령액 UP!)
+* 똑같이 일해도 다른 곳보다 훨씬 많은 돈을 손에 쥘 수 있습니다. 💸
+
+🛡️ [핵심 혜택 2] 불안함은 ZERO! 완벽한 안정성!
+* 4대 보험 가입 의무: 건강, 고용, 산재, 국민연금 확실하게 지원!
+* 법정 퇴직금 지급: 1년 이상 근무 시, 목돈 마련 보장! 🤝
+* 정규직 전환 기회 및 보장: 단순히 아르바이트가 아닌, 커리어를 쌓을 수 있습니다.
+
+🌃 [추가 근무 혜택] 야간 근무 시 급여 UP!
+* 야간 근로 시 법정 가산 수당을 확실히 지급하여 더 많은 수익을 올릴 수 있도록 지원합니다.
+
+---
+
+🎮 당신을 위한 특별한 업무 환경
+
+저희 매장은 젊고 활기찬 분위기입니다. PC방에서 일하는 것 자체가 즐거운 일이 될 수 있도록 지원합니다!
+
+* 최신 사양 PC 무제한 이용: 최고급 모니터, 고성능 그래픽카드 등 최신 게이밍 장비를 마음껏 사용하세요! (휴게 시간, 비번 시간 활용 가능)
+* 활기차고 힙한 매장 분위기: 젊은 매니저들과 팀원들이 함께 즐겁게 일하는 공간입니다.
+* 친절한 교육 시스템: 체계적인 OJT를 통해 업무에 빠르게 적응할 수 있도록 도와드립니다. (친절함만 있다면 OK!)
+
+---
+
+📋 채용 상세 정보
+
+- 회사명 : ${company}
+- 위치 : ${location}
+- 연락처 : ${contact}
+
+- 모집 구분 : 정규직 (가능하면 정규직)
+- 고용 형태 : 정규직 (수습기간 후)
+- 급여 (세전) : 월 200만원 이상 (경력/시간 협의 가능)
+
+지금 바로 위 연락처로 문자 또는 지원 부탁드립니다! 🚀
+            `.trim();
+
+            const t = document.createElement('textarea');
+            t.value = adText;
+            document.body.appendChild(t);
+            t.select();
+            try {
+                document.execCommand('copy');
+                alert('공고문 초안 전체가 복사되었습니다! 채용 사이트 등에 붙여넣기 하세요.');
+            } catch (err) {
+                alert('복사 실패! 수동으로 선택하여 복사해 주세요.');
+            }
+            document.body.removeChild(t);
+        }
+
+        // --- Initialization ---
+        window.onload = () => {
+            const opt = { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                plugins: { legend: { display: false } }, 
+                scales: { 
+                    y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+                    x: { grid: { display: false } }
+                } 
+            };
+            
+            empChart = new Chart(document.getElementById('empChart'), {
+                type: 'bar', 
+                data: { labels: ['3.3% 프리랜서', '4대보험 정규직'], datasets: [{ data: [0, 0], borderRadius: 12, barThickness: 60 }] }, 
+                options: opt
+            });
+            
+            wChart = new Chart(document.getElementById('workChart'), {
+                type: 'bar', 
+                data: { 
+                    labels: ['3.3% 프리랜서', '4대보험 정규직'], 
+                    datasets: [
+                        { label: '실수령액', data: [0, 0], backgroundColor: '#6366f1', stack: 's', borderRadius: 12, barThickness: 60 },
+                        { label: '잠재가치', data: [0, 0], backgroundColor: '#fcd34d', stack: 's', borderRadius: 12, barThickness: 60 }
+                    ] 
+                }, 
+                options: { ...opt, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
+            });
+
+            updateSim(200);
+            document.getElementById('subsidyToggle').onchange = (e) => { state.subsidy = e.target.checked; drawCharts(); };
+            ['mStaff', 'aStaff', 'nStaff'].forEach(id => document.getElementById(id).oninput = calculateWorkers);
+            calculateWorkers();
+
+            const stored = localStorage.getItem('pc_cafe_job_ad_final_v3');
+            if(stored) {
+                const data = JSON.parse(stored);
+                document.getElementById('input-company').value = data.company || '';
+                document.getElementById('input-location').value = data.location || '';
+                document.getElementById('input-contact').value = data.contact || '';
+            }
+        };
+    </script>
+</body>
+</html>
